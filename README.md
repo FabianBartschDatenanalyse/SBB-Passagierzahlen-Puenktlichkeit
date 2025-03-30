@@ -1,11 +1,8 @@
 # SBB-Passagierzahlen-Puenktlichkeit
 
-## Datenaufbereitung
+## Datenaufbereitung des Datensatzes Pünktlichkeit
 
-Die Passagierzahlen habe ich von der frei verfübaren Datenbank opentransportdata.swiss heruntergladen: https://data.opentransportdata.swiss/dataset/einundaus.
-
-Der Datensatz für die Pönktlichkeit der Züge kann von derselben Webseite unter folgendem Link heruntergeladen werden: https://data.opentransportdata.swiss/dataset/istdaten. Für dieses Projekt wurden die Daten vom 27.3.2025 verwendet.
-Dieser Datensatz verfügt über mehr als 2 Millionen Einträge von verschiedenen Verkehrsunternehmen. In einem ersten Schritt sollen alle Einträge von Verkehrsteilnehmer, die nicht SBB sind, herausgefiltert werden. Ausserdem sollen Einträge, welche in den relevanten Variablen ANKUNFTSZEIT (tatsächliche Ankunftszeit), AN_PROGNOSE (Ankunftszeit gemäss Fahrplan), ABFAHRTSZEIT (tatsächliche Abfahrtszeit), AB_PROGNOSE (Abfahrtszeit gemäss Fahrplan) keine Werte aufweisen auch herausgefiltert werden. 
+Der Datensatz für die Pünktlichkeit der Züge kann von der frei verfübaren Datenbank opentransportdata.swiss unter folgendem Link heruntergeladen werden: https://data.opentransportdata.swiss/dataset/istdaten. Für dieses Projekt wurden die Daten vom 27.3.2025 verwendet. Dieser Datensatz verfügt über mehr als 2 Millionen Einträge von verschiedenen Verkehrsunternehmen. In einem ersten Schritt sollen alle Einträge von Verkehrsteilnehmer, die nicht SBB sind, herausgefiltert werden. Ausserdem sollen Einträge, welche in den relevanten Variablen ANKUNFTSZEIT (tatsächliche Ankunftszeit), AN_PROGNOSE (Ankunftszeit gemäss Fahrplan), ABFAHRTSZEIT (tatsächliche Abfahrtszeit), AB_PROGNOSE (Abfahrtszeit gemäss Fahrplan) keine Werte aufweisen auch herausgefiltert werden. 
 
 ```python
 import pandas as pd
@@ -42,14 +39,49 @@ else:
 
 Jetzt ist der Datensatz bereit, um in Power BI eingelesen zu werden. Anschliessend muss aus den Variablen ANKUNFTSZEIT und AN_PROGNOSE als auch aus den Variablen ABFAHRTSZEIT und AB_PROGNOSE die Differenz gebildet werden, damit die Pünktlichkeit des jeweiligen Zuges bestimmmt werden kann. 
 
-```powerquer
+```
 = Table.AddColumn(
-    #"Gefilterte Zeilen", // <-- Ersetze dies!
-    "DauerBerechnung_Ankunft",              // <-- Name deiner neuen Spalte
-    each try [AN_PROGNOSE] - [ANKUNFTSZEIT] otherwise null, // <-- Ersetze Spaltennamen!
-    Duration.Type                   // Setzt den Typ der neuen Spalte auf Dauer
+    #"Gefilterte Zeilen",
+    "DauerBerechnung_Ankunft",
+    each try [AN_PROGNOSE] - [ANKUNFTSZEIT] otherwise null,
+    Duration.Type
  )
 ```
 
+```
+= Table.AddColumn(
+    #"Ankunft_Differenz",
+    "DauerBerechnung_Abfahrt",
+    each try [AB_PROGNOSE] - [ABFAHRTSZEIT] otherwise null,
+    Duration.Type
+ )
+```
+
+Anschliessend kann aus den neu gebildeten Variablen zwei neue Variablen erstellt werden, welche die Pünktlichkeit als Kategorien speichern.
+
+```
+= Table.AddColumn(Abfahrt_Differenz, "Verspaetung_Ankunft_Kategorie", each if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 0) then "A: Zu frühe/pünktliche Ankunft"
+else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 29) then "B: < 30 Sekunden Verspätung"
+else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 59) then "C: 30 Sekunden - 1 Minute Verspätung"
+else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 10, 0) then "D: 1-10 Minuten"
+else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 30, 0) then "E: 11-30 Minuten"
+else "F: > 30 Minuten")
+```
+
+```
+= Table.AddColumn(Verspaetung_Ankunft_Kategorie, "Verspaetung_Abfahrt_Kategorie", 
+each if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 0) then "A: Zu frühe/pünktliche Abfahrt"
+else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 29) then "B: < 30 Sekunden Verspätung"
+else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 59) then "C: 30 Sekunden - 1 Minute Verspätung"
+else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 10, 0) then "D: 1-10 Minuten"
+else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 30, 0) then "E: 11-30 Minuten"
+else "F: > 30 Minuten")
+```
+
+Dadurch gibt es jetzt im Datensatz die beiden Variablen "Verspaetung_Ankunft_Kategorie" und "Verspaetung_Abfahrt_Kategorie", welche angeben, ob ein Zug am 27.3.2025 zu früh oder pünktlich im Bahnhof angekommen oder abgefahren ist, oder ob er eine Verspätung von weniger als 30 Sekunden, zwischen 30 Sekunden und 1 Minute, zwischen 1-10 Minuten, zwischen 11-30 Minuten oder mehr als 30 Minuten aufweist. 
 
 
+
+## Datenaufbereitung des Datensatzes Passagierzahlen
+
+Die Passagierzahlen habe ich von der frei verfübaren Datenbank opentransportdata.swiss heruntergladen: https://data.opentransportdata.swiss/dataset/einundaus.
