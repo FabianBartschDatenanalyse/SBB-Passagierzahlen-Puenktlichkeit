@@ -5,8 +5,7 @@
 Die Passagierzahlen habe ich von der frei verfübaren Datenbank opentransportdata.swiss heruntergladen: https://data.opentransportdata.swiss/dataset/einundaus.
 
 Der Datensatz für die Pönktlichkeit der Züge kann von derselben Webseite unter folgendem Link heruntergeladen werden: https://data.opentransportdata.swiss/dataset/istdaten. Für dieses Projekt wurden die Daten vom 27.3.2025 verwendet.
-Dieser Datensatz verfügt über mehr als 2 Millionen Einträge von verschiedenen Verkehrsunternehmen. In einem ersten Schritt sollen alle Einträge von Verkehrsteilnehmer, die nicht SBB sind, herausgefiltert werden. Ausserdem sollen Einträge, welche in den relevanten Variablen
-ANKUNFTSZEIT, AN_PROGNOSE, ABFAHRTSZEIT, AB_PROGNOSE keine Werte aufweisen auch herausgefiltert werden. 
+Dieser Datensatz verfügt über mehr als 2 Millionen Einträge von verschiedenen Verkehrsunternehmen. In einem ersten Schritt sollen alle Einträge von Verkehrsteilnehmer, die nicht SBB sind, herausgefiltert werden. Ausserdem sollen Einträge, welche in den relevanten Variablen ANKUNFTSZEIT (tatsächliche Ankunftszeit), AN_PROGNOSE (Ankunftszeit gemäss Fahrplan), ABFAHRTSZEIT (tatsächliche Abfahrtszeit), AB_PROGNOSE (Abfahrtszeit gemäss Fahrplan) keine Werte aufweisen auch herausgefiltert werden. 
 
 ```python
 import pandas as pd
@@ -16,8 +15,8 @@ chunksize = 500000  # Anzahl Zeilen pro Chunk
 filtered_chunks = []
 
 # Direkter Pfad zur Datei
-file_path = "C:/Users/fabia/Documents/Jobs/Projekte_fuer_Lebenslauf/SBB_Verspaetungen/2025-03-27_istdaten.csv"
-output_path = "C:/Users/fabia/Documents/Jobs/Projekte_fuer_Lebenslauf/SBB_Verspaetungen/2025-03-27_istdaten_gefiltert.csv"
+file_path = "--pfad/2025-03-27_istdaten.csv"
+output_path = "--pfad/2025-03-27_istdaten_gefiltert.csv"
 
 for chunk in pd.read_csv(file_path, chunksize=chunksize, delimiter=';'):
     # Anwenden der Filterbedingungen
@@ -40,3 +39,17 @@ if filtered_chunks:
 else:
     print("Keine passenden Daten gefunden.")
 ```
+
+Jetzt ist der Datensatz bereit, um in Power BI eingelesen zu werden. Anschliessend muss aus den Variablen ANKUNFTSZEIT und AN_PROGNOSE als auch aus den Variablen ABFAHRTSZEIT und AB_PROGNOSE die Differenz gebildet werden, damit die Pünktlichkeit des jeweiligen Zuges bestimmmt werden kann. 
+
+```powerquer
+= Table.AddColumn(
+    #"Gefilterte Zeilen", // <-- Ersetze dies!
+    "DauerBerechnung_Ankunft",              // <-- Name deiner neuen Spalte
+    each try [AN_PROGNOSE] - [ANKUNFTSZEIT] otherwise null, // <-- Ersetze Spaltennamen!
+    Duration.Type                   // Setzt den Typ der neuen Spalte auf Dauer
+ )
+```
+
+
+
