@@ -182,7 +182,7 @@ Dadurch wurde ein Datensatz erstellt, der jeden Bahnhof mit seiner zugehörigen 
 
 Anschliessend kann ich das Dashboard erstellen:
 
-![grafik](https://github.com/user-attachments/assets/e45ae2e0-f47c-4e9d-a56b-d4f534ed8117)
+![grafik](https://github.com/user-attachments/assets/256748b0-c411-41b5-afd8-e6b5d71f0309)
 
 
 
