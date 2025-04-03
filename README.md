@@ -4,7 +4,7 @@
 
 Der Datensatz für die Pünktlichkeit der Züge kann von der frei verfübaren Datenbank opentransportdata.swiss unter folgendem Link heruntergeladen werden: https://data.opentransportdata.swiss/dataset/istdaten. Für dieses Projekt wurden die Daten vom 27.3.2025 verwendet. 
 
-Es soll ein erster Überblick über die Daten verschafft werden:
+Ein erster Überblick über die Daten erhalte ich mit Python und der Bibliothek Pandas:
 
 ```python
 import pandas as pd
@@ -24,7 +24,7 @@ print("Spaltennamen:", spalten)
 print("Gesamtanzahl der Zeilen:", anzahl_zeilen)
 ```
 
-Der Datensatz beinhaltet 21 Variablen und 2'511'089 Einträge. Die für uns relevanten Variablen sind: BETREIBER_ABK (Abkürzung der Namen der Verkehrsbetriebe), BETREIBER_NAME (Name der Verkehrsbetriebe), BPUIC (Kenncode der Haltestellen), HALTESTELLEN_NAME (Name der Haltestellen), NKUNFTSZEIT (tatsächliche Ankunftszeit), AN_PROGNOSE (Ankunftszeit gemäss Fahrplan), ABFAHRTSZEIT (tatsächliche Abfahrtszeit) und AB_PROGNOSE (Abfahrtszeit gemäss Fahrplan). Wenn wir die eindeutigen Einträge der Variable BETREIBER_NAME anschauen, sehen wir, dass neben der SBB auch noch alle regionalen Verkehrsbetriebe im Datensatz enthalten sind. 
+Der Datensatz beinhaltet 21 Variablen und 2'511'089 Einträge. Die für uns relevanten Variablen sind: BETREIBER_ABK (Abkürzung der Namen der Verkehrsbetriebe), BETREIBER_NAME (Name der Verkehrsbetriebe), BPUIC (Kenncode der Haltestellen), HALTESTELLEN_NAME (Name der Haltestellen), ANKUNFTSZEIT (Ankunftszeit gemäss Fahrplan), AN_PROGNOSE (tatsächliche Ankunftszeit), ABFAHRTSZEIT (Abfahrtszeit gemäss Fahrplan) und AB_PROGNOSE (tatsächliche Abfahrtszeit). Wenn wir die eindeutigen Einträge der Variable BETREIBER_NAME anschauen, sehen wir, dass neben der SBB auch noch alle regionalen Verkehrsbetriebe im Datensatz enthalten sind. 
 
 ```python
 # Eindeutige Werte der Spalte BETREIBER_NAME
