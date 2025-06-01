@@ -1,50 +1,61 @@
-# SBB-Passagierzahlen-Puenktlichkeit
+# SBB Passenger Numbers and Punctuality
 
-## Datenaufbereitung des Datensatzes Pünktlichkeit
+## Data Preparation: Train Punctuality Dataset
 
-Der Datensatz für die Pünktlichkeit der Züge kann von der frei verfübaren Datenbank opentransportdata.swiss unter folgendem Link heruntergeladen werden: https://data.opentransportdata.swiss/dataset/istdaten. Für dieses Projekt wurden die Daten vom 27.3.2025 verwendet. 
+The dataset for train punctuality can be downloaded from the open data platform [opentransportdata.swiss](https://data.opentransportdata.swiss/dataset/istdaten).  
+For this project, the data from **March 27, 2025** was used.
 
-Ein erster Überblick über die Daten erhalte ich mit Python und der Bibliothek Pandas:
+We start with an initial overview using Python and the Pandas library:
 
 ```python
 import pandas as pd
 
-file_path_raw = "--pfad/2025-03-27_istdaten.csv"
+file_path_raw = "--path/2025-03-27_istdaten.csv"
 
 df_raw = pd.read_csv(file_path_raw, delimiter=';')
 
-# Spaltennamen abrufen
-spalten = df_raw.columns.tolist()
+# Get column names
+columns = df_raw.columns.tolist()
 
-# Anzahl der Zeilen abrufen
-anzahl_zeilen = len(df_raw)
+# Get number of rows
+row_count = len(df_raw)
 
-# Ergebnisse ausgeben
-print("Spaltennamen:", spalten)
-print("Gesamtanzahl der Zeilen:", anzahl_zeilen)
+# Output results
+print("Column names:", columns)
+print("Total number of rows:", row_count)
 ```
 
-Der Datensatz beinhaltet 21 Variablen und 2'511'089 Einträge. Die für uns relevanten Variablen sind: BETREIBER_ABK (Abkürzung der Namen der Verkehrsbetriebe), BETREIBER_NAME (Name der Verkehrsbetriebe), BPUIC (Kenncode der Haltestellen), HALTESTELLEN_NAME (Name der Haltestellen), ANKUNFTSZEIT (Ankunftszeit gemäss Fahrplan), AN_PROGNOSE (tatsächliche Ankunftszeit), ABFAHRTSZEIT (Abfahrtszeit gemäss Fahrplan) und AB_PROGNOSE (tatsächliche Abfahrtszeit). Wenn wir die eindeutigen Einträge der Variable BETREIBER_NAME anschauen, sehen wir, dass neben der SBB auch noch alle regionalen Verkehrsbetriebe im Datensatz enthalten sind. 
+The dataset contains **21 variables** and **2,511,089 entries**. The relevant variables for this project are:
+
+- `BETREIBER_ABK` (Operator abbreviation)  
+- `BETREIBER_NAME` (Operator name)  
+- `BPUIC` (Station code)  
+- `HALTESTELLEN_NAME` (Station name)  
+- `ANKUNFTSZEIT` (Scheduled arrival time)  
+- `AN_PROGNOSE` (Actual arrival time)  
+- `ABFAHRTSZEIT` (Scheduled departure time)  
+- `AB_PROGNOSE` (Actual departure time)
+
+Let’s look at the unique entries in the `BETREIBER_NAME` column to identify included operators:
 
 ```python
-# Eindeutige Werte der Spalte BETREIBER_NAME
-eindeutige_werte = df_raw['BETREIBER_NAME'].unique()
+# Unique operator names
+unique_values = df_raw['BETREIBER_NAME'].unique()
 
-print(eindeutige_werte)
+print(unique_values)
 ```
-In einem ersten Schritt sollen alle Einträge von Verkehrsteilnehmer, die nicht SBB sind, herausgefiltert werden. Ausserdem sollen Einträge, welche in den relevanten Variablen ANKUNFTSZEIT (tatsächliche Ankunftszeit), AN_PROGNOSE (Ankunftszeit gemäss Fahrplan), ABFAHRTSZEIT (tatsächliche Abfahrtszeit), AB_PROGNOSE (Abfahrtszeit gemäss Fahrplan) keine Werte aufweisen auch herausgefiltert werden. 
+
+As a first step, we filter out entries that are **not** operated by SBB. We also remove rows where any of the key timing fields (`ANKUNFTSZEIT`, `AN_PROGNOSE`, `ABFAHRTSZEIT`, `AB_PROGNOSE`) are missing.
 
 ```python
-# CSV-Datei in Chunks verarbeiten
-chunksize = 500000  # Anzahl Zeilen pro Chunk
+# Process CSV in chunks
+chunksize = 500000
 filtered_chunks = []
 
-# Direkter Pfad zur Datei
-file_path = "--pfad/2025-03-27_istdaten.csv"
-output_path = "--pfad/2025-03-27_istdaten_gefiltert.csv"
+file_path = "--path/2025-03-27_istdaten.csv"
+output_path = "--path/2025-03-27_istdaten_filtered.csv"
 
 for chunk in pd.read_csv(file_path, chunksize=chunksize, delimiter=';'):
-    # Anwenden der Filterbedingungen
     filtered_chunk = chunk[
         (chunk["BETREIBER_ABK"] == "SBB") &
         (chunk["BETREIBER_NAME"] == "Schweizerische Bundesbahnen SBB") &
@@ -54,136 +65,131 @@ for chunk in pd.read_csv(file_path, chunksize=chunksize, delimiter=';'):
         (chunk["AB_PROGNOSE"].notna())
     ]
     
-    # Falls der Chunk nicht leer ist, speichern
     if not filtered_chunk.empty:
         filtered_chunks.append(filtered_chunk)
 
-# Gefilterte Daten in neue CSV speichern
+# Save filtered results
 if filtered_chunks:
     pd.concat(filtered_chunks).to_csv(output_path, index=False)
 else:
-    print("Keine passenden Daten gefunden.")
+    print("No matching data found.")
 ```
 
-Jetzt ist der Datensatz bereit, um in Power BI eingelesen zu werden. Anschliessend muss aus den Variablen ANKUNFTSZEIT und AN_PROGNOSE als auch aus den Variablen ABFAHRTSZEIT und AB_PROGNOSE die Differenz gebildet werden, damit die Pünktlichkeit des jeweiligen Zuges bestimmmt werden kann. 
+The dataset is now ready to be imported into **Power BI**. Next, we calculate the time differences between actual and scheduled arrival/departure times.
 
-```
+```powerquery
 = Table.AddColumn(
-    #"Gefilterte Zeilen",
-    "DauerBerechnung_Ankunft",
+    #"Filtered Rows",
+    "Duration_Arrival",
     each try [AN_PROGNOSE] - [ANKUNFTSZEIT] otherwise null,
     Duration.Type
- )
+)
 ```
 
-```
+```powerquery
 = Table.AddColumn(
-    #"Ankunft_Differenz",
-    "DauerBerechnung_Abfahrt",
+    #"Arrival Duration",
+    "Duration_Departure",
     each try [AB_PROGNOSE] - [ABFAHRTSZEIT] otherwise null,
     Duration.Type
- )
+)
 ```
 
-Anschliessend kann aus den neu gebildeten Variablen zwei neue Variablen erstellt werden, welche die Pünktlichkeit als Kategorien speichern.
+We then classify the delays into categories for easier analysis:
 
-```
-= Table.AddColumn(Abfahrt_Differenz, "Verspaetung_Ankunft_Kategorie", each if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 0) then "A: Zu frühe/pünktliche Ankunft"
-else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 29) then "B: < 30 Sekunden Verspätung"
-else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 0, 59) then "C: 30 Sekunden - 1 Minute Verspätung"
-else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 10, 0) then "D: 1-10 Minuten"
-else if [DauerBerechnung_Ankunft] <= #duration(0, 0, 30, 0) then "E: 11-30 Minuten"
-else "F: > 30 Minuten")
-```
-
-```
-= Table.AddColumn(Verspaetung_Ankunft_Kategorie, "Verspaetung_Abfahrt_Kategorie", 
-each if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 0) then "A: Zu frühe/pünktliche Abfahrt"
-else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 29) then "B: < 30 Sekunden Verspätung"
-else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 0, 59) then "C: 30 Sekunden - 1 Minute Verspätung"
-else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 10, 0) then "D: 1-10 Minuten"
-else if [DauerBerechnung_Abfahrt] <= #duration(0, 0, 30, 0) then "E: 11-30 Minuten"
-else "F: > 30 Minuten")
+```powerquery
+= Table.AddColumn(Departure_Duration, "Arrival_Delay_Category", 
+each if [Duration_Arrival] <= #duration(0, 0, 0, 0) then "A: Early/on-time arrival"
+else if [Duration_Arrival] <= #duration(0, 0, 0, 29) then "B: < 30 seconds delay"
+else if [Duration_Arrival] <= #duration(0, 0, 0, 59) then "C: 30 sec – 1 min delay"
+else if [Duration_Arrival] <= #duration(0, 0, 10, 0) then "D: 1–10 minutes"
+else if [Duration_Arrival] <= #duration(0, 0, 30, 0) then "E: 11–30 minutes"
+else "F: > 30 minutes")
 ```
 
-Dadurch gibt es jetzt im Datensatz die beiden Variablen "Verspaetung_Ankunft_Kategorie" und "Verspaetung_Abfahrt_Kategorie", welche angeben, ob ein Zug am 27.3.2025 zu früh oder pünktlich im Bahnhof angekommen oder abgefahren ist, oder ob er eine Verspätung von weniger als 30 Sekunden, zwischen 30 Sekunden und 1 Minute, zwischen 1-10 Minuten, zwischen 11-30 Minuten oder mehr als 30 Minuten aufweist. 
+```powerquery
+= Table.AddColumn(Arrival_Delay_Category, "Departure_Delay_Category", 
+each if [Duration_Departure] <= #duration(0, 0, 0, 0) then "A: Early/on-time departure"
+else if [Duration_Departure] <= #duration(0, 0, 0, 29) then "B: < 30 seconds delay"
+else if [Duration_Departure] <= #duration(0, 0, 0, 59) then "C: 30 sec – 1 min delay"
+else if [Duration_Departure] <= #duration(0, 0, 10, 0) then "D: 1–10 minutes"
+else if [Duration_Departure] <= #duration(0, 0, 30, 0) then "E: 11–30 minutes"
+else "F: > 30 minutes")
+```
 
+Now, the dataset contains two additional columns — `Arrival_Delay_Category` and `Departure_Delay_Category` — which categorize whether a train arrived or departed on time, or with varying degrees of delay on **March 27, 2025**.
 
+---
 
-## Datenaufbereitung des Datensatzes Passagierzahlen
+## Data Preparation: Passenger Numbers
 
-Die Passagierzahlen können auch von der frei verfübaren Datenbank opentransportdata.swiss heruntergladen werden: https://data.opentransportdata.swiss/dataset/einundaus.
+Passenger statistics are available from the same open data platform:  
+https://data.opentransportdata.swiss/dataset/einundaus
 
-Ein Überblick zeigt, dass es im Datensatz 14 Variablen hat, wobei UIC (Kennzahl Haltestellen), Jahn_Annee_Anno (Jahr der Erhebung) und DTV_TJM_TGM (Durchschnittlicher täglicher Verkehr (Montag bis Sonntag)) relevant sind. 
+The dataset contains **14 variables**, but the relevant ones are:  
+- `UIC` (Station identifier)  
+- `Jahr_Annee_Anno` (Year of measurement)  
+- `DTV_TJM_TGM` (Average daily passenger frequency)
 
 ```python
-file_path_passagiere = "--pfad/t01x-sbb-cff-ffs-frequentia-2023.xlsx"
+file_path_passengers = "--path/t01x-sbb-cff-ffs-frequentia-2023.xlsx"
 
-df_passagiere = pd.read_excel(file_path_passagiere, sheet_name="Data")
-                              
-# Spaltennamen abrufen
-spalten_passagiere = df_passagiere.columns.tolist()
+df_passengers = pd.read_excel(file_path_passengers, sheet_name="Data")
 
-# Anzahl der Zeilen abrufen
-anzahl_zeilen_passagiere = len(df_passagiere)
+# Retrieve column names and number of rows
+columns_passengers = df_passengers.columns.tolist()
+row_count_passengers = len(df_passengers)
 
-# Ergebnisse ausgeben
-print("Spaltennamen:", spalten_passagiere)
-print("Gesamtanzahl der Zeilen:", anzahl_zeilen_passagiere)
+print("Column names:", columns_passengers)
+print("Total number of rows:", row_count_passengers)
 ```
 
+---
 
-## Zusammenführen der beiden Datensätze
+## Merging the Two Datasets
 
-Damit der Pünktlichkeits-Datensatz und der Passagier-Datensatz in Power BI als Datenmodell miteinander verknüpft werden können, muss ein Dimensions-Datensatz erstellt werden, welcher als Verbindungspunkt beider Datensätze fungiert. 
+To link the punctuality and passenger datasets in Power BI, we need a **dimension table** that can act as a bridge.
 
 ```python
-# Pfade definieren
-input_path = "--pfad/2025-03-27_istdaten_gefiltert.csv"
-# Neuer Name für die Ausgabedatei mit den eindeutigen Bahnhöfen
-output_path = "--pfad/eindeutige_bahnhoefe.csv" 
+input_path = "--path/2025-03-27_istdaten_filtered.csv"
+output_path = "--path/unique_stations.csv"
 
-# Relevante Spalten definieren
 columns_to_keep = ['BPUIC', 'HALTESTELLEN_NAME']
 
-print(f"Lese Datei: {input_path}")
-print(f"Wähle Spalten aus: {', '.join(columns_to_keep)}")
+print(f"Reading file: {input_path}")
+print(f"Selecting columns: {', '.join(columns_to_keep)}")
 
 try:
-    # Lese die gefilterte CSV-Datei ein, aber nur die benötigten Spalten
     df = pd.read_csv(input_path, delimiter=',', usecols=columns_to_keep)
 
-    print(f"Anzahl Zeilen vor Deduplizierung: {len(df)}")
+    print(f"Rows before deduplication: {len(df)}")
 
-    # Entferne doppelte Zeilen basierend auf den ausgewählten Spalten
     df_unique = df.drop_duplicates()
 
-    print(f"Anzahl Zeilen nach Deduplizierung: {len(df_unique)}")
+    print(f"Rows after deduplication: {len(df_unique)}")
 
-    # Speichere das Ergebnis in einer neuen CSV-Datei
-    df_unique.to_csv(output_path, index=False, sep=';') 
+    df_unique.to_csv(output_path, index=False, sep=';')
 
-    print(f"Eindeutige Bahnhofsdaten gespeichert in: {output_path}")
+    print(f"Unique station data saved to: {output_path}")
 
 except FileNotFoundError:
-    print(f"FEHLER: Eingabedatei nicht gefunden unter {input_path}")
+    print(f"ERROR: Input file not found at {input_path}")
 except KeyError as e:
-    print(f"FEHLER: Spalte {e} nicht in der Datei {input_path} gefunden. Überprüfe die Spaltennamen.")
+    print(f"ERROR: Column {e} not found in {input_path}. Check column names.")
 except Exception as e:
-    print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
+    print(f"An unexpected error occurred: {e}")
 ```
 
-Dadurch wurde ein Datensatz erstellt, der jeden Bahnhof mit seiner zugehörigen Kennzahl enthält. In Power BI können die Datensätze als Datenmodell verbunden werden:
+This creates a station reference dataset linking station names and codes. In **Power BI**, you can now create a data model to join the datasets:
 
-![grafik](https://github.com/user-attachments/assets/f6433cc4-4ae1-4541-8cb7-34ff9437b6eb)
+![diagram](https://github.com/user-attachments/assets/f6433cc4-4ae1-4541-8cb7-34ff9437b6eb)
 
-![grafik](https://github.com/user-attachments/assets/f1c12e27-b134-4237-a200-de89845277c8)
+![diagram](https://github.com/user-attachments/assets/f1c12e27-b134-4237-a200-de89845277c8)
 
+---
 
-Anschliessend kann ich das Dashboard erstellen:
+## Final Dashboard
 
-![grafik](https://github.com/user-attachments/assets/256748b0-c411-41b5-afd8-e6b5d71f0309)
+Once the model is set up, you can create your final dashboard:
 
-
-
-
+![dashboard](https://github.com/user-attachments/assets/256748b0-c411-41b5-afd8-e6b5d71f0309)
